@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator"
+	"github.com/razdacoder/mcwale-api/models"
 	"github.com/razdacoder/mcwale-api/services/auth"
 	"github.com/razdacoder/mcwale-api/utils"
 )
@@ -26,6 +27,8 @@ func (handler *Handler) RegisterRoutes(router chi.Router) {
 	router.Post("/register", handler.handleRegister)
 	router.Get("/users", handler.handleGetAllUsers)
 	router.Get("/users/{id}", handler.handleGetSingleUser)
+	router.Put("/users/{id}", handler.handleUpdateUser)
+	router.Delete("/users/{id}", handler.handleUserDelete)
 }
 
 func (handler *Handler) handleLogin(writer http.ResponseWriter, request *http.Request) {
@@ -115,9 +118,47 @@ func (handler *Handler) handleGetSingleUser(writer http.ResponseWriter, request 
 	id := chi.URLParam(request, "id")
 	user, err := handler.store.GetUserByID(id)
 	if err != nil {
-		utils.WriteError(writer, http.StatusInternalServerError, err)
+		utils.WriteError(writer, http.StatusNotFound, err)
 		return
 	}
 
 	utils.WriteJSON(writer, http.StatusOK, user)
+}
+
+func (handler *Handler) handleUpdateUser(writer http.ResponseWriter, request *http.Request) {
+	id := chi.URLParam(request, "id")
+	user, err := handler.store.GetUserByID(id)
+	if err != nil {
+		utils.WriteError(writer, http.StatusNotFound, err)
+		return
+	}
+	var patch models.User
+	if err := utils.ParseJSON(request, &patch); err != nil {
+		utils.WriteError(writer, http.StatusBadRequest, err)
+		return
+	}
+	patch.Password = user.Password
+
+	err = handler.store.UpdateUserInfo(&patch)
+	if err != nil {
+		utils.WriteError(writer, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(writer, http.StatusOK, patch)
+}
+
+func (handler *Handler) handleUserDelete(writer http.ResponseWriter, request *http.Request) {
+	id := chi.URLParam(request, "id")
+	user, err := handler.store.GetUserByID(id)
+	if err != nil {
+		utils.WriteError(writer, http.StatusNotFound, err)
+		return
+	}
+	err = handler.store.DeleteUser(user.ID)
+	if err != nil {
+		utils.WriteError(writer, http.StatusBadRequest, err)
+	}
+
+	utils.WriteJSON(writer, http.StatusOK, nil)
 }

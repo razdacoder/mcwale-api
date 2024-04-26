@@ -1,6 +1,7 @@
 package users
 
 import (
+	"github.com/google/uuid"
 	"github.com/razdacoder/mcwale-api/models"
 	"gorm.io/gorm"
 )
@@ -21,6 +22,8 @@ type UserStore interface {
 	GetUserByID(id string) (*models.User, error)
 	CreateUser(payload RegisterUserPayload) error
 	GetAllUsers() ([]models.User, error)
+	UpdateUserInfo(user *models.User) error
+	DeleteUser(id uuid.UUID) error
 }
 
 type RegisterUserPayload struct {
@@ -68,4 +71,14 @@ func (store *Store) GetAllUsers() ([]models.User, error) {
 	var users []models.User
 	result := store.db.Find(&users)
 	return users, result.Error
+}
+
+func (store *Store) UpdateUserInfo(user *models.User) error {
+	results := store.db.Save(&user)
+	return results.Error
+}
+
+func (store *Store) DeleteUser(id uuid.UUID) error {
+	results := store.db.Delete(&models.User{}, id)
+	return results.Error
 }
