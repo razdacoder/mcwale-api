@@ -24,6 +24,7 @@ type UserStore interface {
 	GetAllUsers() ([]models.User, error)
 	UpdateUserInfo(user *models.User) error
 	DeleteUser(id uuid.UUID) error
+	UpdatePassword(id, password string) error
 }
 
 type RegisterUserPayload struct {
@@ -36,6 +37,15 @@ type RegisterUserPayload struct {
 type LoginUserPayload struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required,min=8,max=255"`
+}
+
+type ResetPasswordPayload struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+type ResetPasswordConfirmPayload struct {
+	Password        string `json:"password" validate:"required,min=8,max=255"`
+	ConfirmPassword string `json:"confirm_password" validate:"required,min=8,max=255"`
 }
 
 func (store *Store) GetUserByEmail(email string) (*models.User, error) {
@@ -80,5 +90,10 @@ func (store *Store) UpdateUserInfo(user *models.User) error {
 
 func (store *Store) DeleteUser(id uuid.UUID) error {
 	results := store.db.Delete(&models.User{}, id)
+	return results.Error
+}
+
+func (store *Store) UpdatePassword(id, password string) error {
+	results := store.db.Model(&models.User{}).Where("id = ?", id).Update("password", password)
 	return results.Error
 }

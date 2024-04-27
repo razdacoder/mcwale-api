@@ -25,10 +25,93 @@ func NewHandler(store UserStore) *Handler {
 func (handler *Handler) RegisterRoutes(router chi.Router) {
 	router.Post("/login", handler.handleLogin)
 	router.Post("/register", handler.handleRegister)
+	router.Post("/reset-password", handler.handleResetPassword)
+	router.Post("/reset-password/{token}", handler.handleResetPasswordConfirm)
+
 	router.Get("/users", handler.handleGetAllUsers)
-	router.Get("/users/{id}", handler.handleGetSingleUser)
-	router.Put("/users/{id}", handler.handleUpdateUser)
-	router.Delete("/users/{id}", handler.handleUserDelete)
+	router.Route("/users/me", func(router chi.Router) {
+		router.Use(auth.IsLoggedIn)
+		router.Get("/", handler.handleGetCurrentUser)
+	})
+	router.Route("/users/{id}", func(router chi.Router) {
+		router.Use(auth.IsLoggedIn)
+		router.Use(auth.IsAdminOrCurrentUser)
+		router.Get("/", handler.handleGetSingleUser)
+		router.Put("/", handler.handleUpdateUser)
+		router.Delete("/", handler.handleUserDelete)
+	})
+
+}
+
+func (handler *Handler) handleResetPassword(writer http.ResponseWriter, request *http.Request) {
+	var payload ResetPasswordPayload
+	if err := utils.ParseJSON(request, &payload); err != nil {
+		utils.WriteError(writer, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := utils.Validate.Struct(payload); err != nil {
+		errors := err.(validator.ValidationErrors)
+		utils.WriteError(writer, http.StatusBadRequest, fmt.Errorf("invalid payload %v", errors))
+		return
+	}
+
+	user, err := handler.store.GetUserByEmail(payload.Email)
+	if err != nil {
+		utils.WriteError(writer, http.StatusUnauthorized, fmt.Errorf("email does not exists"))
+		return
+	}
+
+	token, err := auth.CreateResetPasswordJWT([]byte(os.Getenv("JWT_SECRET")), user.ID)
+	if err != nil {
+		utils.WriteError(writer, http.StatusInternalServerError, err)
+		return
+	}
+	fmt.Println(token)
+
+	// Send Email to User
+	utils.WriteJSON(writer, http.StatusOK, map[string]string{"message": "reset password email sent"})
+
+}
+
+func (handler *Handler) handleResetPasswordConfirm(writer http.ResponseWriter, request *http.Request) {
+	var payload ResetPasswordConfirmPayload
+	if err := utils.ParseJSON(request, &payload); err != nil {
+		utils.WriteError(writer, http.StatusBadRequest, err)
+		return
+	}
+
+	if payload.Password != payload.ConfirmPassword {
+		utils.WriteError(writer, http.StatusBadRequest, fmt.Errorf("password do not match"))
+		return
+	}
+
+	token := chi.URLParam(request, "token")
+	if token == "" {
+		utils.WriteError(writer, http.StatusBadRequest, fmt.Errorf("token not found"))
+		return
+	}
+
+	userId, err := auth.VerifyPasswordToken(token)
+	if err != nil {
+		utils.WriteError(writer, http.StatusBadRequest, err)
+		return
+	}
+
+	hashedPassword, err := auth.HashPassword(payload.Password)
+	if err != nil {
+		utils.WriteError(writer, http.StatusInternalServerError, err)
+		return
+	}
+
+	err = handler.store.UpdatePassword(userId, hashedPassword)
+	if err != nil {
+		utils.WriteError(writer, http.StatusBadRequest, err)
+		return
+	}
+
+	utils.WriteJSON(writer, http.StatusOK, map[string]string{"message": "password reset successful"})
+
 }
 
 func (handler *Handler) handleLogin(writer http.ResponseWriter, request *http.Request) {
@@ -55,7 +138,7 @@ func (handler *Handler) handleLogin(writer http.ResponseWriter, request *http.Re
 		return
 	}
 
-	token, err := auth.CreateJWT([]byte(os.Getenv("JWT_SECRET")), user.ID)
+	token, err := auth.CreateJWT([]byte(os.Getenv("JWT_SECRET")), user.ID, string(*user.UserRole))
 	if err != nil {
 		utils.WriteError(writer, http.StatusInternalServerError, err)
 		return
@@ -117,6 +200,24 @@ func (handler *Handler) handleGetAllUsers(writer http.ResponseWriter, request *h
 func (handler *Handler) handleGetSingleUser(writer http.ResponseWriter, request *http.Request) {
 	id := chi.URLParam(request, "id")
 	user, err := handler.store.GetUserByID(id)
+	if err != nil {
+		utils.WriteError(writer, http.StatusNotFound, err)
+		return
+	}
+
+	utils.WriteJSON(writer, http.StatusOK, user)
+}
+
+func (handler *Handler) handleGetCurrentUser(writer http.ResponseWriter, request *http.Request) {
+	ctx := request.Context()
+	userObj, ok := ctx.Value(auth.UserKey).(map[string]string)
+	fmt.Println(userObj, ok)
+	if !ok {
+		utils.WriteError(writer, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+		return
+	}
+
+	user, err := handler.store.GetUserByID(string(userObj["userId"]))
 	if err != nil {
 		utils.WriteError(writer, http.StatusNotFound, err)
 		return
