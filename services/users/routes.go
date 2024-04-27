@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator"
+
 	"github.com/razdacoder/mcwale-api/models"
 	"github.com/razdacoder/mcwale-api/services/auth"
 	"github.com/razdacoder/mcwale-api/utils"
@@ -40,7 +41,6 @@ func (handler *Handler) RegisterRoutes(router chi.Router) {
 		router.Put("/", handler.handleUpdateUser)
 		router.Delete("/", handler.handleUserDelete)
 	})
-
 }
 
 func (handler *Handler) handleResetPassword(writer http.ResponseWriter, request *http.Request) {
@@ -71,7 +71,6 @@ func (handler *Handler) handleResetPassword(writer http.ResponseWriter, request 
 
 	// Send Email to User
 	utils.WriteJSON(writer, http.StatusOK, map[string]string{"message": "reset password email sent"})
-
 }
 
 func (handler *Handler) handleResetPasswordConfirm(writer http.ResponseWriter, request *http.Request) {
@@ -111,7 +110,6 @@ func (handler *Handler) handleResetPasswordConfirm(writer http.ResponseWriter, r
 	}
 
 	utils.WriteJSON(writer, http.StatusOK, map[string]string{"message": "password reset successful"})
-
 }
 
 func (handler *Handler) handleLogin(writer http.ResponseWriter, request *http.Request) {
