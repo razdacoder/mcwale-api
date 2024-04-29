@@ -30,12 +30,12 @@ func WriteError(writer http.ResponseWriter, status int, err error) {
 	WriteJSON(writer, status, map[string]string{"error": err.Error()})
 }
 
-func ParseStringToInt(value string, fallback int64) int64 {
-	i, err := strconv.ParseInt(value, 10, 64)
+func ParseStringToInt(value string, fallback int) int {
+	i, err := strconv.ParseInt(value, 10, 16)
 
 	if err != nil {
 		return fallback
 	}
 
-	return i
+	return int(i)
 }

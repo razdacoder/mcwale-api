@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/razdacoder/mcwale-api/services/products"
 	"github.com/razdacoder/mcwale-api/services/users"
 	"github.com/razdacoder/mcwale-api/utils"
 	"gorm.io/gorm"
@@ -28,10 +29,15 @@ func (server *APIServer) Run() error {
 	router.Use(middleware.Logger)
 	v1Router := chi.NewRouter()
 	v1Router.Get("/status", handleHealth)
-
+	// Users Handlers
 	userStore := users.NewStore(server.db)
 	userHandler := users.NewHandler(userStore)
 	userHandler.RegisterRoutes(v1Router)
+
+	// Product Handlers
+	productStore := products.NewStore(server.db)
+	productHandler := products.NewHandler(productStore)
+	productHandler.RegisterRoutes(v1Router)
 
 	router.Mount("/api/v1", v1Router)
 	log.Println("Listening on port ", server.addr)

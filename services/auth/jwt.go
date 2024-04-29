@@ -127,7 +127,7 @@ func IsAdmin(next http.Handler) http.Handler {
 			utils.WriteError(writer, http.StatusUnprocessableEntity, fmt.Errorf("no user found"))
 			return
 		}
-
+		fmt.Println(models.UserRole(user["role"]))
 		if models.UserRole(user["role"]) != models.Admin {
 			utils.WriteError(writer, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 			return
