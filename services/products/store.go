@@ -144,3 +144,15 @@ func (store *Store) GetProductsByCategory(slug, style string, minPrice, maxPrice
 	results := db.Offset(offset).Limit(utils.ParseStringToInt(os.Getenv("PER_PAGE"), 10)).Preload("Category").Find(&products)
 	return products, results.Error
 }
+
+func (store *Store) GetRecentProducts() ([]models.Product, error) {
+	var products []models.Product
+	results := store.db.Order("created_at desc").Limit(6).Preload("Category").Find(&products)
+	return products, results.Error
+}
+
+func (store *Store) GetFeaturedProducts() ([]models.Product, error) {
+	var products []models.Product
+	results := store.db.Where("is_featured", true).Order("created_at desc").Limit(6).Preload("Category").Find(&products)
+	return products, results.Error
+}

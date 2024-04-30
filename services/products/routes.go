@@ -44,9 +44,12 @@ func productsRouter(handler *Handler) chi.Router {
 	router := chi.NewRouter()
 
 	router.Get("/category/{slug}", handler.handleGetProductsByCategory)
+	router.Get("/recent", handler.handleGetRecentProducts)
+	router.Get("/featured", handler.handleGetFeaturedProducts)
 
 	router.Route("/", func(router chi.Router) {
 		router.Get("/", handler.handleGetAllProducts)
+
 		router.With(auth.IsLoggedIn, auth.IsAdmin).Post("/", handler.handleCreateProduct)
 	})
 
@@ -260,4 +263,24 @@ func (handler *Handler) handleGetProductsByCategory(writer http.ResponseWriter, 
 	}
 
 	utils.WriteJSON(writer, http.StatusOK, map[string]any{"results": len(products), "page": page, "data": products})
+}
+
+func (handler *Handler) handleGetRecentProducts(writer http.ResponseWriter, request *http.Request) {
+	products, err := handler.store.GetRecentProducts()
+	if err != nil {
+		utils.WriteError(writer, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(writer, http.StatusOK, products)
+}
+
+func (handler *Handler) handleGetFeaturedProducts(writer http.ResponseWriter, request *http.Request) {
+	products, err := handler.store.GetFeaturedProducts()
+	if err != nil {
+		utils.WriteError(writer, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(writer, http.StatusOK, products)
 }
