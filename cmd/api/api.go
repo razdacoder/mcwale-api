@@ -6,6 +6,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+	"github.com/razdacoder/mcwale-api/services/orders"
 	"github.com/razdacoder/mcwale-api/services/products"
 	"github.com/razdacoder/mcwale-api/services/users"
 	"github.com/razdacoder/mcwale-api/utils"
@@ -27,6 +29,15 @@ func NewAPISever(addr string, db *gorm.DB) *APIServer {
 func (server *APIServer) Run() error {
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
+
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"https://*", "http://*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: false,
+		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	}))
 	v1Router := chi.NewRouter()
 	v1Router.Get("/status", handleHealth)
 	// Users Handlers
@@ -38,6 +49,11 @@ func (server *APIServer) Run() error {
 	productStore := products.NewStore(server.db)
 	productHandler := products.NewHandler(productStore)
 	productHandler.RegisterRoutes(v1Router)
+
+	// Orders Handlers
+	orderStore := orders.NewStore(server.db)
+	orderHandler := orders.NewHandler(orderStore)
+	orderHandler.RegisterRoutes(v1Router)
 
 	router.Mount("/api/v1", v1Router)
 	log.Println("Listening on port ", server.addr)

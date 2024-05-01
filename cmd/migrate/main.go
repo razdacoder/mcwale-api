@@ -19,6 +19,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	db.AutoMigrate(&models.User{}, &models.Category{}, &models.Product{})
+	db.AutoMigrate(&models.User{}, &models.Category{}, &models.Product{}, &models.Order{}, &models.OrderItem{})
 	log.Println("Migration Complete")
 }
