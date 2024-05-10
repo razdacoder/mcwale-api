@@ -45,7 +45,7 @@ type Order struct {
 	OrderNote   string       `gorm:"type:text;not null" json:"order_note"`
 	Status      *OrderStatus `gorm:"type:order_status;default:'pending';not null" json:"status"`
 	Total       float64      `gorm:"type:decimal(10, 2);not null" json:"total"`
-	Items       []OrderItem  `gorm:"constraint:OnDelete:CASCADE" json:"items,omitempty"`
+	Items       []OrderItem  `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"items,omitempty"`
 	CreatedAt   time.Time    `json:"created_at"`
 	UpdatedAt   time.Time    `json:"-"`
 }

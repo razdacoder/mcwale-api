@@ -13,10 +13,9 @@ type Category struct {
 	Slug      string         `gorm:"type:text;unique;not null" json:"slug"`
 	Styles    pq.StringArray `gorm:"type:text[];not null" json:"styles"`
 	Image     string         `gorm:"type:string;not null" json:"image"`
-	Products  []Product      `json:"products,omitempty"`
+	Products  []Product      `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"products,omitempty"`
 	CreatedAt time.Time      `gorm:"auto_now_add" json:"-"`
 	UpdatedAt time.Time      `gorm:"auto_now" json:"-"`
-	DeletedAt *time.Time     `gorm:"auto_now_add;default:null" json:"-"`
 }
 
 type Product struct {
@@ -33,5 +32,4 @@ type Product struct {
 	Category           Category       `json:"category,omitempty"`
 	CreatedAt          time.Time      `gorm:"auto_now_add" json:"-"`
 	UpdatedAt          time.Time      `gorm:"auto_now" json:"-"`
-	DeletedAt          *time.Time     `gorm:"auto_now_add;default:null" json:"-"`
 }

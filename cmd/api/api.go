@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/razdacoder/mcwale-api/services/appointments"
 	"github.com/razdacoder/mcwale-api/services/orders"
 	"github.com/razdacoder/mcwale-api/services/products"
 	"github.com/razdacoder/mcwale-api/services/users"
@@ -54,6 +55,11 @@ func (server *APIServer) Run() error {
 	orderStore := orders.NewStore(server.db)
 	orderHandler := orders.NewHandler(orderStore)
 	orderHandler.RegisterRoutes(v1Router)
+
+	//Appointment Handlers
+	appointmentStore := appointments.NewStore(server.db)
+	appointmentHandler := appointments.NewHandler(appointmentStore)
+	appointmentHandler.RegisterRoutes(v1Router)
 
 	router.Mount("/api/v1", v1Router)
 	log.Println("Listening on port ", server.addr)

@@ -10,6 +10,7 @@ require (
 )
 
 require (
+	github.com/fatih/structs v1.1.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
 	github.com/go-chi/chi/v5 v5.0.12 // indirect
 	github.com/go-chi/cors v1.2.1 // indirect

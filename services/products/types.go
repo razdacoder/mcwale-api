@@ -36,7 +36,7 @@ type CreateProductPayload struct {
 	IsFeatured         bool      `json:"is_featured" validate:"required"`
 	Price              float64   `json:"price" validate:"required"`
 	Description        string    `json:"description" validate:"required"`
-	DiscountPercentage float64   `json:"discount_percentage" validate:"required"`
+	DiscountPercentage float64   `json:"discount_percentage"`
 	CategoryID         uuid.UUID `json:"category_id" validate:"required"`
 }
 

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/razdacoder/mcwale-api/models"
 )
 
 var Validate = validator.New()
@@ -38,4 +39,27 @@ func ParseStringToInt(value string, fallback int) int {
 	}
 
 	return int(i)
+}
+
+func ParseProductUpdate(product *models.Product) map[string]interface{} {
+	productMap := make(map[string]interface{})
+	productMap["is_featured"] = product.IsFeatured
+	productMap["discount_percentage"] = product.DiscountPercentage
+	if product.Title != "" {
+		productMap["title"] = product.Title
+	}
+	if product.Description != "" {
+		productMap["description"] = product.Description
+	}
+	if product.Price > 0 {
+		productMap["price"] = product.Price
+	}
+	if product.Style != "" {
+		productMap["style"] = product.Style
+	}
+	if product.Images != nil {
+		productMap["images"] = product.Images
+	}
+
+	return productMap
 }

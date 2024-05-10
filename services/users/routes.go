@@ -26,6 +26,7 @@ func NewHandler(store UserStore) *Handler {
 func (handler *Handler) RegisterRoutes(router chi.Router) {
 	router.Post("/login", handler.handleLogin)
 	router.Post("/register", handler.handleRegister)
+	router.Post("/verify", handler.handleVerifyToken)
 	router.Post("/reset-password", handler.handleResetPassword)
 	router.Post("/reset-password/{token}", handler.handleResetPasswordConfirm)
 
@@ -41,6 +42,24 @@ func (handler *Handler) RegisterRoutes(router chi.Router) {
 		router.Put("/", handler.handleUpdateUser)
 		router.Delete("/", handler.handleUserDelete)
 	})
+}
+
+func (handler *Handler) handleVerifyToken(writer http.ResponseWriter, request *http.Request) {
+	tokenString := request.Header.Get("Authorization")
+	if tokenString == "" {
+		utils.WriteError(writer, http.StatusUnauthorized, fmt.Errorf("Unauthorized"))
+		return
+	}
+
+	tokenString = tokenString[len("Bearer "):]
+	_, err := auth.VerifyUserToken(tokenString)
+	if err != nil {
+
+		utils.WriteError(writer, http.StatusUnauthorized, fmt.Errorf("Unauthorized"))
+		return
+	}
+
+	utils.WriteJSON(writer, http.StatusOK, map[string]string{})
 }
 
 func (handler *Handler) handleResetPassword(writer http.ResponseWriter, request *http.Request) {

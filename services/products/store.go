@@ -1,6 +1,7 @@
 package products
 
 import (
+	"math"
 	"os"
 
 	"github.com/razdacoder/mcwale-api/models"
@@ -55,7 +56,7 @@ func (store *Store) DeleteCategory(slug string) error {
 	if err != nil {
 		return err
 	}
-	results := store.db.Delete(&models.Category{}, category.ID)
+	results := store.db.Select("Products").Delete(&category)
 	return results.Error
 }
 
@@ -76,27 +77,40 @@ func (store *Store) CreateProduct(payload CreateProductPayload) error {
 	return result.Error
 }
 
-func (store *Store) GetAllProducts(style, category_slug string, minPrice, maxPrice float64, offset int) ([]models.Product, error) {
+func (store *Store) GetAllProducts(category_slug string, minPrice, maxPrice float64, offset int, sortBy string) ([]models.Product, int, error) {
 	var products []models.Product
 	db := store.db.Model(&models.Product{})
-	if style != "" {
-		db = db.Where("style = ?", style)
-	}
+	var total int64
+
 	if minPrice != 0 {
 		db = db.Where("price >= ?", minPrice)
 	}
 	if category_slug != "" {
 		category, err := store.GetSingleCategory(category_slug)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		db = db.Where("category_id = ?", category.ID)
 	}
 	if maxPrice != 0 {
 		db = db.Where("price <= ?", maxPrice)
 	}
-	result := db.Offset(offset).Limit(1).Preload("Category").Find(&products)
-	return products, result.Error
+
+	switch sortBy {
+	case "new_arrivals":
+		db = db.Order("created_at DESC")
+	case "price_low_to_high":
+		db = db.Order("price ASC")
+	case "price_high_to_low":
+		db = db.Order("price DESC")
+	default:
+		db = db.Order("created_at DESC")
+	}
+	db.Count(&total)
+
+	pages := int(math.Ceil(float64(total) / float64(utils.ParseStringToInt(os.Getenv("PER_PAGE"), 10))))
+	result := db.Offset(offset).Limit(utils.ParseStringToInt(os.Getenv("PER_PAGE"), 10)).Preload("Category").Find(&products)
+	return products, pages, result.Error
 }
 
 func (store *Store) GetSingleProduct(slug string) (*models.Product, error) {
@@ -110,7 +124,8 @@ func (store *Store) UpdateProduct(slug string, product *models.Product) error {
 	if err != nil {
 		return err
 	}
-	results := store.db.Model(&existingProduct).Updates(&product)
+	productMap := utils.ParseProductUpdate(product)
+	results := store.db.Model(&existingProduct).Select("title", "images", "is_featured", "description", "style", "price", "discount_percentage").Updates(productMap)
 	return results.Error
 }
 
@@ -123,13 +138,14 @@ func (store *Store) DeleteProduct(slug string) error {
 	return results.Error
 }
 
-func (store *Store) GetProductsByCategory(slug, style string, minPrice, maxPrice float64, offset int) ([]models.Product, error) {
+func (store *Store) GetProductsByCategory(slug, style string, minPrice, maxPrice float64, offset int, sortBy string) ([]models.Product, error) {
 	var products []models.Product
 	category, err := store.GetSingleCategory(slug)
 	if err != nil {
 		return nil, err
 	}
 	db := store.db.Model(&models.Product{}).Where("category_id = ?", category.ID)
+
 	if style != "" {
 		db = db.Where("style = ?", style)
 	}
@@ -141,13 +157,24 @@ func (store *Store) GetProductsByCategory(slug, style string, minPrice, maxPrice
 		db = db.Where("price <= ?", maxPrice)
 	}
 
+	switch sortBy {
+	case "new_arrivals":
+		db = db.Order("created_at DESC")
+	case "price_low_to_high":
+		db = db.Order("price ASC")
+	case "price_high_to_low":
+		db = db.Order("price DESC")
+	default:
+		db = db.Order("created_at DESC")
+	}
+
 	results := db.Offset(offset).Limit(utils.ParseStringToInt(os.Getenv("PER_PAGE"), 10)).Preload("Category").Find(&products)
 	return products, results.Error
 }
 
 func (store *Store) GetRecentProducts() ([]models.Product, error) {
 	var products []models.Product
-	results := store.db.Order("created_at desc").Limit(6).Preload("Category").Find(&products)
+	results := store.db.Order("created_at desc").Limit(5).Preload("Category").Find(&products)
 	return products, results.Error
 }
 
@@ -155,4 +182,39 @@ func (store *Store) GetFeaturedProducts() ([]models.Product, error) {
 	var products []models.Product
 	results := store.db.Where("is_featured", true).Order("created_at desc").Limit(6).Preload("Category").Find(&products)
 	return products, results.Error
+}
+
+func (store *Store) GetRelatedProducts(slug string) ([]models.Product, error) {
+	var products []models.Product
+	selectedProduct, err := store.GetSingleProduct(slug)
+	if err != nil {
+		return nil, err
+	}
+	results := store.db.Where("id != ?", selectedProduct.ID).Where("style = ?", selectedProduct.Style).Order("created_at desc").Limit(6).Preload("Category").Find(&products)
+
+	return products, results.Error
+}
+
+func (store *Store) SearchProduct(query string, offset int, sortBy string) ([]models.Product, error) {
+	var products []models.Product
+	db := store.db.Model(&models.Product{})
+
+	if query != "" {
+		db = db.Where("(title ILIKE ? OR style ILIKE ?)",
+			"%"+query+"%", "%"+query+"%")
+	}
+
+	switch sortBy {
+	case "new_arrivals":
+		db = db.Order("created_at DESC")
+	case "price_low_to_high":
+		db = db.Order("price ASC")
+	case "price_high_to_low":
+		db = db.Order("price DESC")
+	default:
+		db = db.Order("created_at DESC")
+	}
+
+	result := db.Offset(offset).Limit(utils.ParseStringToInt(os.Getenv("PER_PAGE"), 10)).Preload("Category").Find(&products)
+	return products, result.Error
 }

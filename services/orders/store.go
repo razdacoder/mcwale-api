@@ -16,7 +16,7 @@ func NewStore(db *gorm.DB) *Store {
 	}
 }
 
-func (store *Store) CreateOrder(payload CreateOrderPayload) error {
+func (store *Store) CreateOrder(payload CreateOrderPayload) (string, error) {
 	order := &models.Order{
 		ID:          uuid.New(),
 		OrderNumber: payload.OrderNumber,
@@ -49,16 +49,16 @@ func (store *Store) CreateOrder(payload CreateOrderPayload) error {
 	tx := store.db.Begin()
 	if err := tx.Create(order).Error; err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 
 	if err := tx.Model(order).Association("Items").Append(order.Items); err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 
 	tx.Commit()
-	return nil
+	return order.OrderNumber, nil
 }
 
 func (store *Store) GetOrders() ([]models.Order, error) {
@@ -91,18 +91,6 @@ func (store *Store) DeleteOrder(id string) error {
 	if err != nil {
 		return err
 	}
-	tx := store.db.Begin()
-	if err := tx.Where("order_id = ?", uuid.MustParse(id)).Delete(&models.OrderItem{}); err.Error != nil {
-		tx.Rollback()
-		return err.Error
-	}
-
-	if err := tx.Delete(&models.Order{}, order.ID); err.Error != nil {
-		tx.Rollback()
-		return err.Error
-	}
-
-	tx.Commit()
-	return nil
-
+	results := store.db.Select("Items").Delete(&order)
+	return results.Error
 }

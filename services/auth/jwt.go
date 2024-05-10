@@ -68,7 +68,26 @@ func verifyToken(tokenString string) (string, string, error) {
 	}
 
 	return userId, role, nil
+}
 
+func VerifyUserToken(tokenString string) (bool, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(os.Getenv("JWT_SECRET")), nil
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		exp := claims["expires_at"].(float64)
+		if exp < float64(time.Now().Unix()) {
+			return false, fmt.Errorf("token has expired")
+		}
+		return true, nil
+	}
+
+	return false, fmt.Errorf("invalid token")
 }
 
 func VerifyPasswordToken(tokenString string) (string, error) {

@@ -46,6 +46,8 @@ func productsRouter(handler *Handler) chi.Router {
 	router.Get("/category/{slug}", handler.handleGetProductsByCategory)
 	router.Get("/recent", handler.handleGetRecentProducts)
 	router.Get("/featured", handler.handleGetFeaturedProducts)
+	router.Get("/related/{slug}", handler.handleGetRelatedProducts)
+	router.Get("/search", handler.handleSearch)
 
 	router.Route("/", func(router chi.Router) {
 		router.Get("/", handler.handleGetAllProducts)
@@ -109,7 +111,7 @@ func (handler *Handler) handleGetSingleCategory(writer http.ResponseWriter, requ
 		utils.WriteError(writer, http.StatusInternalServerError, err)
 		return
 	}
-	utils.WriteJSON(writer, http.StatusCreated, category)
+	utils.WriteJSON(writer, http.StatusOK, category)
 }
 
 func (handler *Handler) handleUpdateCategory(writer http.ResponseWriter, request *http.Request) {
@@ -171,23 +173,23 @@ func (handler *Handler) handleCreateProduct(writer http.ResponseWriter, request 
 
 func (handler *Handler) handleGetAllProducts(writer http.ResponseWriter, request *http.Request) {
 	query := request.URL.Query()
-	style := query.Get("style")
 	minPrice, _ := strconv.ParseFloat(query.Get("min_price"), 64)
 	maxPrice, _ := strconv.ParseFloat(query.Get("max_price"), 64)
 	category_slug := query.Get("category")
+	sortBy := query.Get("sortBy")
 	page := utils.ParseStringToInt(query.Get("page"), 0)
 	perPage := utils.ParseStringToInt(os.Getenv("PER_PAGE"), 10)
 	if page == 0 {
 		page = 1
 	}
 	offset := (page - 1) * perPage
-	products, err := handler.store.GetAllProducts(style, category_slug, minPrice, maxPrice, offset)
+	products, pages, err := handler.store.GetAllProducts(category_slug, minPrice, maxPrice, offset, sortBy)
 	if err != nil {
 		utils.WriteError(writer, http.StatusInternalServerError, err)
 		return
 	}
 
-	utils.WriteJSON(writer, http.StatusOK, map[string]any{"results": len(products), "page": page, "data": products})
+	utils.WriteJSON(writer, http.StatusOK, map[string]any{"results": len(products), "page": page, "data": products, "pages": pages})
 }
 
 func (handler *Handler) handleGetSingleProduct(writer http.ResponseWriter, request *http.Request) {
@@ -216,7 +218,6 @@ func (handler *Handler) handleUpdateProduct(writer http.ResponseWriter, request 
 		utils.WriteError(writer, http.StatusBadRequest, err)
 		return
 	}
-
 	err := handler.store.UpdateProduct(slug, &patch)
 	if err != nil {
 		utils.WriteError(writer, http.StatusInternalServerError, err)
@@ -248,6 +249,7 @@ func (handler *Handler) handleGetProductsByCategory(writer http.ResponseWriter, 
 	}
 	query := request.URL.Query()
 	style := query.Get("style")
+	sortBy := query.Get("sortBy")
 	minPrice, _ := strconv.ParseFloat(query.Get("min_price"), 64)
 	maxPrice, _ := strconv.ParseFloat(query.Get("max_price"), 64)
 	page := utils.ParseStringToInt(query.Get("page"), 0)
@@ -256,7 +258,7 @@ func (handler *Handler) handleGetProductsByCategory(writer http.ResponseWriter, 
 		page = 1
 	}
 	offset := (page - 1) * perPage
-	products, err := handler.store.GetProductsByCategory(slug, style, minPrice, maxPrice, offset)
+	products, err := handler.store.GetProductsByCategory(slug, style, minPrice, maxPrice, offset, sortBy)
 	if err != nil {
 		utils.WriteError(writer, http.StatusInternalServerError, err)
 		return
@@ -283,4 +285,39 @@ func (handler *Handler) handleGetFeaturedProducts(writer http.ResponseWriter, re
 	}
 
 	utils.WriteJSON(writer, http.StatusOK, products)
+}
+
+func (handler *Handler) handleGetRelatedProducts(writer http.ResponseWriter, request *http.Request) {
+	slug := chi.URLParam(request, "slug")
+	if slug == "" {
+		utils.WriteError(writer, http.StatusBadRequest, fmt.Errorf("no slug found"))
+		return
+	}
+	products, err := handler.store.GetRelatedProducts(slug)
+	if err != nil {
+		utils.WriteError(writer, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(writer, http.StatusOK, products)
+}
+
+func (handler *Handler) handleSearch(writer http.ResponseWriter, request *http.Request) {
+	query := request.URL.Query()
+	searchQuery := query.Get("q")
+	sortBy := query.Get("sortBy")
+	page := utils.ParseStringToInt(query.Get("page"), 0)
+	perPage := utils.ParseStringToInt(os.Getenv("PER_PAGE"), 10)
+	if page == 0 {
+		page = 1
+	}
+	offset := (page - 1) * perPage
+
+	products, err := handler.store.SearchProduct(searchQuery, offset, sortBy)
+	if err != nil {
+		utils.WriteError(writer, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(writer, http.StatusOK, map[string]any{"results": len(products), "page": page, "data": products})
 }

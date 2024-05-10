@@ -25,11 +25,11 @@ func orderRoutes(handler *Handler) chi.Router {
 
 	router.Route("/", func(router chi.Router) {
 		router.Post("/", handler.handleCreateOrder)
-		router.With(auth.IsLoggedIn, auth.IsAdmin).Get("/", handler.handleGetOrders)
+		router.Get("/", handler.handleGetOrders)
 	})
 
 	router.Route("/{id}", func(router chi.Router) {
-		router.With(auth.IsLoggedIn, auth.IsAdmin).Get("/", handler.handleGetOrder)
+		router.Get("/", handler.handleGetOrder)
 		router.With(auth.IsLoggedIn, auth.IsAdmin).Patch("/", handler.handleUpdateOrderStatus)
 		router.With(auth.IsLoggedIn, auth.IsAdmin).Delete("/", handler.handleDeleteOrder)
 	})
@@ -54,12 +54,14 @@ func (handler *Handler) handleCreateOrder(writer http.ResponseWriter, request *h
 		return
 	}
 
-	if err := handler.store.CreateOrder(payload); err != nil {
+	orderNumber, err := handler.store.CreateOrder(payload)
+
+	if err != nil {
 		utils.WriteError(writer, http.StatusInternalServerError, err)
 		return
 	}
 
-	utils.WriteJSON(writer, http.StatusCreated, map[string]string{"message": "Order Created"})
+	utils.WriteJSON(writer, http.StatusCreated, map[string]string{"order_number": orderNumber})
 }
 
 func (handler *Handler) handleGetOrders(writer http.ResponseWriter, request *http.Request) {
